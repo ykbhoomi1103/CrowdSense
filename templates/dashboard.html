@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>CrowdSense Dashboard</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #080c10;
+      --surface: #0e1318;
+      --surface2: #121920;
+      --border: #1e2730;
+      --accent: #00e5ff;
+      --text: #e8edf2;
+      --muted: #5a6a78;
+      --green: #00e676;
+      --orange: #ffa726;
+      --red: #ff1744;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      min-height: 100vh;
+      padding: 1.5rem;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(0,229,255,0.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,229,255,0.025) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .wrap { position: relative; z-index: 1; max-width: 1000px; margin: 0 auto; }
+
+    /* ── HEADER ── */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 2rem;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+
+    .back-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 0.82rem;
+      letter-spacing: 0.05em;
+      transition: color 0.2s;
+    }
+    .back-btn:hover { color: var(--accent); }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .live-badge {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: rgba(0,230,118,0.08);
+      border: 1px solid rgba(0,230,118,0.2);
+      color: var(--green);
+      font-size: 0.72rem;
+      font-weight: 500;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      padding: 0.35rem 0.9rem;
+      border-radius: 100px;
+    }
+
+    .pulse-dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--green);
+      animation: pulse 2s infinite;
+    }
+
+    .timestamp {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
+
+    /* ── LOCATION TABS ── */
+    .location-tabs {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 2rem;
+    }
+
+    .tab {
+      padding: 0.5rem 1.2rem;
+      border-radius: 100px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--muted);
+      font-size: 0.82rem;
+      font-family: 'Syne', sans-serif;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-decoration: none;
+    }
+    .tab:hover { border-color: var(--accent); color: var(--text); }
+    .tab.active { background: var(--accent); color: #000; border-color: var(--accent); }
+
+    /* ── MAIN CARD ── */
+    .main-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 2rem;
+      margin-bottom: 1.5rem;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .main-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      background: var(--crowd-color, var(--accent));
+      transition: background 0.5s ease;
+    }
+
+    .card-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+
+    .location-name {
+      font-family: 'Syne', sans-serif;
+      font-size: 1.8rem;
+      font-weight: 800;
+    }
+
+    .location-icon { font-size: 1.4rem; margin-right: 0.5rem; }
+
+    .crowd-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem 1.2rem;
+      border-radius: 100px;
+      font-family: 'Syne', sans-serif;
+      font-weight: 700;
+      font-size: 0.9rem;
+      border: 1.5px solid;
+      transition: all 0.5s ease;
+    }
+    .crowd-badge.Low    { color: var(--green);  border-color: var(--green);  background: rgba(0,230,118,0.08); }
+    .crowd-badge.Medium { color: var(--orange); border-color: var(--orange); background: rgba(255,167,38,0.08); }
+    .crowd-badge.High   { color: var(--red);    border-color: var(--red);    background: rgba(255,23,68,0.08); }
+
+    /* ── STATS GRID ── */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+
+    .stat-box {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 1.2rem 1.4rem;
+    }
+
+    .stat-label {
+      font-size: 0.7rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 0.5rem;
+    }
+
+    .stat-value {
+      font-family: 'DM Mono', monospace;
+      font-size: 1.6rem;
+      font-weight: 500;
+      color: var(--text);
+      line-height: 1;
+    }
+
+    .stat-value.accent { color: var(--accent); }
+
+    .stat-sub {
+      font-size: 0.72rem;
+      color: var(--muted);
+      margin-top: 0.35rem;
+    }
+
+    /* ── CHART ── */
+    .chart-section {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 1.5rem 2rem;
+    }
+
+    .chart-title {
+      font-family: 'Syne', sans-serif;
+      font-weight: 700;
+      font-size: 0.9rem;
+      margin-bottom: 1.2rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    canvas { width: 100% !important; }
+
+    /* ── DENSITY BAR ── */
+    .density-bar-wrap {
+      margin-top: 1.5rem;
+    }
+
+    .density-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.72rem;
+      color: var(--muted);
+      margin-bottom: 0.5rem;
+    }
+
+    .density-track {
+      height: 6px;
+      background: var(--border);
+      border-radius: 100px;
+      overflow: hidden;
+    }
+
+    .density-fill {
+      height: 100%;
+      border-radius: 100px;
+      background: var(--accent);
+      transition: width 0.8s ease, background 0.5s ease;
+    }
+
+    /* ── REFRESH INDICATOR ── */
+    .refresh-bar {
+      height: 2px;
+      background: var(--border);
+      border-radius: 100px;
+      overflow: hidden;
+      margin-top: 1.5rem;
+    }
+
+    .refresh-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent), #0080ff);
+      animation: refilling 8s linear infinite;
+    }
+
+    @keyframes refilling {
+      from { width: 100%; }
+      to   { width: 0%; }
+    }
+    @keyframes pulse {
+      0%   { box-shadow: 0 0 0 0 rgba(0,230,118,0.5); }
+      70%  { box-shadow: 0 0 0 6px rgba(0,230,118,0); }
+      100% { box-shadow: 0 0 0 0 rgba(0,230,118,0); }
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .updating { opacity: 0.5; transition: opacity 0.3s; }
+    .updated  { opacity: 1;   transition: opacity 0.5s; animation: fadeIn 0.4s ease; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- HEADER -->
+  <header>
+    <a class="back-btn" href="/">
+      ← Back to locations
+    </a>
+    <div class="header-right">
+      <div class="live-badge"><div class="pulse-dot"></div>Live</div>
+      <div class="timestamp" id="ts">--:--:--</div>
+    </div>
+  </header>
+
+  <!-- LOCATION TABS -->
+  <div class="location-tabs">
+    <a class="tab {% if location == 'Canteen' %}active{% endif %}" href="/dashboard?location=Canteen">🍽️ Canteen</a>
+    <a class="tab {% if location == 'Library' %}active{% endif %}" href="/dashboard?location=Library">📚 Library</a>
+    <a class="tab {% if location == 'Gym'     %}active{% endif %}" href="/dashboard?location=Gym">🏋️ Gym</a>
+  </div>
+
+  <!-- MAIN CARD -->
+  <div class="main-card" id="mainCard">
+    <div class="card-top">
+      <div>
+        <div style="color:var(--muted);font-size:0.75rem;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:0.4rem;">Monitoring</div>
+        <div class="location-name">
+          <span class="location-icon" id="locIcon">🍽️</span>
+          <span id="locName">{{ location }}</span>
+        </div>
+      </div>
+      <div class="crowd-badge Low" id="crowdBadge">⬤ Low</div>
+    </div>
+
+    <div class="stats-grid">
+      <div class="stat-box">
+        <div class="stat-label">📶 Live Devices</div>
+        <div class="stat-value accent" id="deviceCount">--</div>
+        <div class="stat-sub">detected in area</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">👥 Crowd Level</div>
+        <div class="stat-value" id="crowdLevel">--</div>
+        <div class="stat-sub">current density</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">⏱ Wait Time</div>
+        <div class="stat-value" id="waitTime">--</div>
+        <div class="stat-sub">estimated</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">📊 Peak Hours</div>
+        <div class="stat-value" id="peakHours" style="font-size:1rem;padding-top:0.3rem">--</div>
+        <div class="stat-sub">busiest window</div>
+      </div>
+    </div>
+
+    <!-- Density bar -->
+    <div class="density-bar-wrap">
+      <div class="density-label">
+        <span>Occupancy level</span>
+        <span id="densityPct">0%</span>
+      </div>
+      <div class="density-track">
+        <div class="density-fill" id="densityFill" style="width:0%"></div>
+      </div>
+    </div>
+
+    <!-- Refresh progress -->
+    <div class="refresh-bar"><div class="refresh-fill" id="refreshFill"></div></div>
+  </div>
+
+  <!-- CHART -->
+  <div class="chart-section">
+    <div class="chart-title">📈 Device Count History (last 12 readings)</div>
+    <canvas id="crowdChart" height="100"></canvas>
+  </div>
+
+</div>
+
+<script>
+  const LOCATION = "{{ location }}";
+  const ICONS = { Canteen: '🍽️', Library: '📚', Gym: '🏋️' };
+  const COLOR_MAP = { Low: '#00e676', Medium: '#ffa726', High: '#ff1744' };
+
+  document.getElementById('locIcon').textContent = ICONS[LOCATION] || '📍';
+
+  // ── CHART INIT ──────────────────────────────────────
+  const ctx = document.getElementById('crowdChart').getContext('2d');
+  const chart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: [],
+      datasets: [{
+        label: 'Devices',
+        data: [],
+        borderColor: '#00e5ff',
+        backgroundColor: 'rgba(0,229,255,0.07)',
+        borderWidth: 2,
+        tension: 0.4,
+        fill: true,
+        pointBackgroundColor: '#00e5ff',
+        pointRadius: 4,
+        pointHoverRadius: 6
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#0e1318',
+          borderColor: '#1e2730',
+          borderWidth: 1,
+          titleColor: '#5a6a78',
+          bodyColor: '#e8edf2'
+        }
+      },
+      scales: {
+        x: {
+          grid: { color: 'rgba(255,255,255,0.04)' },
+          ticks: { color: '#5a6a78', font: { family: 'DM Mono', size: 11 } }
+        },
+        y: {
+          grid: { color: 'rgba(255,255,255,0.04)' },
+          ticks: { color: '#5a6a78', font: { family: 'DM Mono', size: 11 } },
+          beginAtZero: true,
+          suggestedMax: 110
+        }
+      }
+    }
+  });
+
+  // ── FETCH LIVE DATA ──────────────────────────────────
+  async function fetchData() {
+    const card = document.getElementById('mainCard');
+    card.classList.add('updating');
+
+    try {
+      const res  = await fetch(`/api/crowd?location=${LOCATION}`);
+      const data = await res.json();
+
+      // Update text
+      document.getElementById('deviceCount').textContent = data.device_count;
+      document.getElementById('crowdLevel').textContent  = data.crowd_level;
+      document.getElementById('waitTime').textContent    = data.wait_time;
+      document.getElementById('peakHours').textContent   = data.peak_hours;
+      document.getElementById('ts').textContent          = data.timestamp;
+
+      // Crowd badge
+      const badge = document.getElementById('crowdBadge');
+      badge.textContent = '⬤ ' + data.crowd_level;
+      badge.className = 'crowd-badge ' + data.crowd_level;
+
+      // Top bar color
+      const col = COLOR_MAP[data.crowd_level] || '#00e5ff';
+      card.style.setProperty('--crowd-color', col);
+
+      // Density bar (max ~110 devices = 100%)
+      const pct = Math.min(100, Math.round((data.device_count / 110) * 100));
+      document.getElementById('densityFill').style.width  = pct + '%';
+      document.getElementById('densityFill').style.background = col;
+      document.getElementById('densityPct').textContent   = pct + '%';
+
+    } catch(e) { console.error(e); }
+
+    card.classList.remove('updating');
+    card.classList.add('updated');
+    setTimeout(() => card.classList.remove('updated'), 500);
+  }
+
+  // ── FETCH CHART HISTORY ──────────────────────────────
+  async function fetchHistory() {
+    try {
+      const res  = await fetch(`/api/history?location=${LOCATION}`);
+      const data = await res.json();
+      chart.data.labels   = data.times;
+      chart.data.datasets[0].data = data.counts;
+      chart.update();
+    } catch(e) { console.error(e); }
+  }
+
+  // ── RESTART REFRESH ANIMATION ────────────────────────
+  function restartAnim() {
+    const el = document.getElementById('refreshFill');
+    el.style.animation = 'none';
+    el.offsetHeight;  // reflow
+    el.style.animation = 'refilling 8s linear infinite';
+  }
+
+  // ── INIT + LOOP ──────────────────────────────────────
+  fetchData();
+  fetchHistory();
+
+  setInterval(() => {
+    fetchData();
+    fetchHistory();
+    restartAnim();
+  }, 8000);
+</script>
+</body>
+</html>

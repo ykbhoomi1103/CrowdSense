@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>CrowdSense — Smart Crowd Monitor</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #080c10;
+      --surface: #0e1318;
+      --border: #1e2730;
+      --accent: #00e5ff;
+      --accent2: #ff6b35;
+      --text: #e8edf2;
+      --muted: #5a6a78;
+      --green: #00e676;
+      --orange: #ffa726;
+      --red: #ff1744;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* Background grid */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(0,229,255,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,229,255,0.03) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events: none;
+    }
+
+    /* Glowing orb */
+    body::after {
+      content: '';
+      position: fixed;
+      top: -20%;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 700px;
+      height: 700px;
+      background: radial-gradient(circle, rgba(0,229,255,0.06) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .container {
+      position: relative;
+      z-index: 1;
+      text-align: center;
+      padding: 2rem;
+      max-width: 640px;
+      width: 100%;
+    }
+
+    .badge {
+      display: inline-block;
+      background: rgba(0,229,255,0.08);
+      border: 1px solid rgba(0,229,255,0.2);
+      color: var(--accent);
+      font-size: 0.7rem;
+      font-weight: 500;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      padding: 0.35rem 1rem;
+      border-radius: 100px;
+      margin-bottom: 1.5rem;
+      animation: fadeUp 0.6s ease both;
+    }
+
+    h1 {
+      font-family: 'Syne', sans-serif;
+      font-size: clamp(2.5rem, 8vw, 4rem);
+      font-weight: 800;
+      line-height: 1.05;
+      margin-bottom: 1rem;
+      animation: fadeUp 0.6s 0.1s ease both;
+    }
+
+    h1 span {
+      background: linear-gradient(135deg, var(--accent), #0080ff);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .subtitle {
+      color: var(--muted);
+      font-size: 1rem;
+      font-weight: 300;
+      line-height: 1.6;
+      margin-bottom: 3rem;
+      animation: fadeUp 0.6s 0.2s ease both;
+    }
+
+    .label {
+      font-family: 'Syne', sans-serif;
+      font-size: 0.75rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 1rem;
+      animation: fadeUp 0.6s 0.3s ease both;
+    }
+
+    .location-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1rem;
+      margin-bottom: 2.5rem;
+      animation: fadeUp 0.6s 0.4s ease both;
+    }
+
+    .loc-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 1.5rem 1rem;
+      cursor: pointer;
+      transition: all 0.25s ease;
+      text-decoration: none;
+      color: var(--text);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .loc-card::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(0,229,255,0.05), transparent);
+      opacity: 0;
+      transition: opacity 0.25s ease;
+    }
+
+    .loc-card:hover {
+      border-color: var(--accent);
+      transform: translateY(-4px);
+      box-shadow: 0 8px 32px rgba(0,229,255,0.12);
+    }
+
+    .loc-card:hover::before { opacity: 1; }
+
+    .loc-card.selected {
+      border-color: var(--accent);
+      background: rgba(0,229,255,0.06);
+      box-shadow: 0 0 0 1px rgba(0,229,255,0.3);
+    }
+
+    .loc-icon {
+      font-size: 2rem;
+      margin-bottom: 0.6rem;
+      display: block;
+    }
+
+    .loc-name {
+      font-family: 'Syne', sans-serif;
+      font-weight: 700;
+      font-size: 0.95rem;
+    }
+
+    .loc-desc {
+      font-size: 0.72rem;
+      color: var(--muted);
+      margin-top: 0.3rem;
+    }
+
+    .go-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.6rem;
+      background: var(--accent);
+      color: #000;
+      font-family: 'Syne', sans-serif;
+      font-weight: 700;
+      font-size: 0.9rem;
+      letter-spacing: 0.05em;
+      padding: 0.85rem 2.5rem;
+      border-radius: 100px;
+      border: none;
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.2s ease;
+      animation: fadeUp 0.6s 0.5s ease both;
+      box-shadow: 0 4px 24px rgba(0,229,255,0.3);
+    }
+
+    .go-btn:hover {
+      background: #33eaff;
+      transform: scale(1.04);
+      box-shadow: 0 6px 32px rgba(0,229,255,0.45);
+    }
+
+    .go-btn svg {
+      width: 16px; height: 16px;
+    }
+
+    .pulse-dot {
+      display: inline-block;
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 0 0 rgba(0,230,118,0.4);
+      animation: pulse 2s infinite;
+      margin-right: 6px;
+      vertical-align: middle;
+    }
+
+    .live-label {
+      font-size: 0.75rem;
+      color: var(--green);
+      margin-top: 1.5rem;
+      animation: fadeUp 0.6s 0.6s ease both;
+    }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes pulse {
+      0%   { box-shadow: 0 0 0 0 rgba(0,230,118,0.5); }
+      70%  { box-shadow: 0 0 0 8px rgba(0,230,118,0); }
+      100% { box-shadow: 0 0 0 0 rgba(0,230,118,0); }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="badge">📡 Live Crowd Intelligence</div>
+
+    <h1>Smart <span>Crowd</span><br/>Monitor</h1>
+
+    <p class="subtitle">
+      Real-time crowd estimation using device density simulation<br/>
+      and time-based behavioral pattern analysis.
+    </p>
+
+    <div class="label">Select a location to monitor</div>
+
+    <div class="location-grid">
+      <div class="loc-card selected" onclick="selectLocation(this, 'Canteen')">
+        <span class="loc-icon">🍽️</span>
+        <div class="loc-name">Canteen</div>
+        <div class="loc-desc">Peak: 12–2 PM</div>
+      </div>
+      <div class="loc-card" onclick="selectLocation(this, 'Library')">
+        <span class="loc-icon">📚</span>
+        <div class="loc-name">Library</div>
+        <div class="loc-desc">Peak: 5–8 PM</div>
+      </div>
+      <div class="loc-card" onclick="selectLocation(this, 'Gym')">
+        <span class="loc-icon">🏋️</span>
+        <div class="loc-name">Gym</div>
+        <div class="loc-desc">Peak: 6–8 PM</div>
+      </div>
+    </div>
+
+    <a class="go-btn" id="goBtn" href="/dashboard?location=Canteen">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <path d="M5 12h14M12 5l7 7-7 7"/>
+      </svg>
+      View Live Dashboard
+    </a>
+
+    <div class="live-label">
+      <span class="pulse-dot"></span>
+      System active — refreshes every 8 seconds
+    </div>
+  </div>
+
+  <script>
+    let selected = 'Canteen';
+
+    function selectLocation(el, name) {
+      document.querySelectorAll('.loc-card').forEach(c => c.classList.remove('selected'));
+      el.classList.add('selected');
+      selected = name;
+      document.getElementById('goBtn').href = `/dashboard?location=${name}`;
+    }
+  </script>
+</body>
+</html>
